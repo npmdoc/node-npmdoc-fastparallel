@@ -1,0 +1,206 @@
+<html><head></head><body><div class="apidocDiv">
+<style>
+/*csslint
+*/
+.apidocDiv {
+    background: #fff;
+    font-family: Arial, Helvetica, sans-serif;
+}
+.apidocDiv a[href] {
+    color: #33f;
+    font-weight: bold;
+    text-decoration: none;
+}
+.apidocDiv a[href]:hover {
+    text-decoration: underline;
+}
+.apidocCodeCommentSpan {
+    background: #bbf;
+    color: #000;
+    display: block;
+}
+.apidocCodeKeywordSpan {
+    color: #d00;
+    font-weight: bold;
+}
+.apidocCodePre {
+    background: #eef;
+    border: 1px solid;
+    color: #777;
+    padding: 5px;
+    white-space: pre-wrap;
+}
+.apidocFooterDiv {
+    margin-top: 20px;
+    text-align: center;
+}
+.apidocModuleLi {
+    margin-top: 10px;
+}
+.apidocSectionDiv {
+    border-top: 1px solid;
+    margin-top: 20px;
+}
+.apidocSignatureSpan {
+    color: #777;
+    font-weight: bold;
+}
+</style>
+<h1>api documentation for
+    <a href="https://github.com/mcollina/fastparallel">fastparallel (v2.3.0)</a>
+</h1>
+<h4>Zero-overhead asynchronous parallel/each/map function call</h4>
+<div class="apidocSectionDiv"><a href="#apidoc.tableOfContents" id="apidoc.tableOfContents"><h1>table of contents</h1></a><ol>
+
+    <li class="apidocModuleLi"><a href="#apidoc.module.fastparallel">module fastparallel</a><ol>
+
+        <li>
+
+            <a class="apidocElementLiA" href="#apidoc.element.fastparallel.fastparallel">
+            function <span class="apidocSignatureSpan"></span>fastparallel
+            <span class="apidocSignatureSpan">(options)</span>
+            </a>
+
+        </li>
+
+    </ol></li>
+
+</ol></div>
+
+<div class="apidocSectionDiv">
+<h1><a href="#apidoc.module.fastparallel" id="apidoc.module.fastparallel">module fastparallel</a></h1>
+
+
+    <h2>
+        <a href="#apidoc.element.fastparallel.fastparallel" id="apidoc.element.fastparallel.fastparallel">
+        function <span class="apidocSignatureSpan"></span>fastparallel
+        <span class="apidocSignatureSpan">(options)</span>
+        </a>
+    </h2>
+    <ul>
+    <li>description and source-code<pre class="apidocCodePre">function fastparallel(options) {
+  options = xtend(defaults, options)
+
+  var released = options.released
+  var queue = reusify(options.results ? ResultsHolder : NoResultsHolder)
+  var queueSingleCaller = reusify(SingleCaller)
+  var goArray = options.results ? goResultsArray : goNoResultsArray
+  var goFunc = options.results ? goResultsFunc : goNoResultsFunc
+
+  return parallel
+
+  function parallel (that, toCall, arg, done) {
+    var holder = queue.get()
+    done = done || nop
+    if (toCall.length === 0) {
+      done.call(that)
+      released(holder)
+    } else {
+      holder._callback = done
+      holder._callThat = that
+      holder._release = release
+
+      if (typeof toCall === 'function') {
+        goFunc(that, toCall, arg, holder)
+      } else {
+        goArray(that, toCall, arg, holder)
+      }
+
+      if (holder._count === 0) {
+        holder.release()
+      }
+    }
+  }
+
+  function release (holder) {
+    queue.release(holder)
+    released(holder)
+  }
+
+  function singleCallerRelease (holder) {
+    queueSingleCaller.release(holder)
+  }
+
+  function goResultsFunc (that, toCall, arg, holder) {
+    var singleCaller = null
+    holder._count = arg.length
+    holder._results = new Array(holder._count)
+    for (var i = 0; i &lt; arg.length; i++) {
+      singleCaller = queueSingleCaller.get()
+      singleCaller._release = singleCallerRelease
+      singleCaller.parent = holder
+      singleCaller.pos = i
+      if (that) {
+        toCall.call(that, arg[i], singleCaller.release)
+      } else {
+        toCall(arg[i], singleCaller.release)
+      }
+    }
+  }
+
+  function goResultsArray (that, funcs, arg, holder) {
+    var sc = null
+    var tc = nop
+    holder._count = funcs.length
+    holder._results = new Array(holder._count)
+    for (var i = 0; i &lt; funcs.length; i++) {
+      sc = queueSingleCaller.get()
+      sc._release = singleCallerRelease
+      sc.parent = holder
+      sc.pos = i
+      tc = funcs[i]
+      if (that) {
+        if (tc.length === 1) tc.call(that, sc.release)
+        else tc.call(that, arg, sc.release)
+      } else {
+        if (tc.length === 1) tc(sc.release)
+        else tc(arg, sc.release)
+      }
+    }
+  }
+
+  function goNoResultsFunc (that, toCall, arg, holder) {
+    holder._count = arg.length
+    for (var i = 0; i &lt; arg.length; i++) {
+      if (that) {
+        toCall.call(that, arg[i], holder.release)
+      } else {
+        toCall(arg[i], holder.release)
+      }
+    }
+  }
+
+  function goNoResultsArray (that, funcs, arg, holder) {
+    var toCall = null
+    holder._count = funcs.length
+    for (var i = 0; i &lt; funcs.length; i++) {
+      toCall = funcs[i]
+      if (that) {
+        if (toCall.length === 1) {
+          toCall.call(that, holder.release)
+        } else {
+          toCall.call(that, arg, holder.release)
+        }
+      } else {
+        if (toCall.length === 1) {
+          toCall(holder.release)
+        } else {
+          toCall(arg, holder.release)
+        }
+      }
+    }
+  }
+}</pre></li>
+    <li>example usage<pre class="apidocCodePre">n/a</pre></li>
+    </ul>
+
+
+</div>
+
+<div class="apidocFooterDiv">
+    [ this document was created with
+    <a href="https://github.com/kaizhu256/node-utility2" target="_blank">utility2</a>
+    ]
+</div>
+</div>
+</body></html>
